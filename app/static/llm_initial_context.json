@@ -1,0 +1,10 @@
+[
+  {
+    "role": "user",
+    "content": "Add here your prompt!"
+  },
+  {
+    "role": "assistant",
+    "content": "Understood. I'm ready to help you navigate your journey."
+  }
+]

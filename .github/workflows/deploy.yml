@@ -1,0 +1,66 @@
+name: Build and Deploy to Cloud Run
+
+on:
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: 79253047002
+  PROJECT_NAME: slack-ai-app-461120
+  SERVICE_NAME: slack-ai-app
+  REGION: europe-west1
+  REGISTRY: gcr.io
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Google Auth
+      id: auth
+      uses: google-github-actions/auth@v1
+      with:
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+
+    - name: Authorize Docker push
+      run: gcloud auth configure-docker ${{ env.REGISTRY }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    - name: Build and push container
+      uses: docker/build-push-action@v5
+      env:
+        IMAGE_NAME: ${{ env.REGISTRY }}/${{ env.PROJECT_NAME }}/${{ env.SERVICE_NAME }}:${{ env.IMAGE_TAG }}
+      with:
+        push: true
+        tags: ${{ env.IMAGE_NAME }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Deploy to Cloud Run
+      id: deploy
+      uses: google-github-actions/deploy-cloudrun@v1
+      with:
+        service: ${{ env.SERVICE_NAME }}
+        image: ${{ env.REGISTRY }}/${{ env.PROJECT_NAME }}/${{ env.SERVICE_NAME }}:${{ env.IMAGE_TAG }}
+        region: ${{ env.REGION }}
+        env_vars_file: github-actions/config/github.env
+        flags: --allow-unauthenticated
+        secrets: |
+          SLACK_SIGNING_SECRET=SLACK_SIGNING_SECRET:latest
+          SLACK_CLIENT_SECRET=SLACK_CLIENT_SECRET:latest
+          GEMINI_API_KEY=GEMINI_API_KEY:latest
+          CRON_JOB_SECRET_TOKEN=CRON_JOB_SECRET_TOKEN:latest
+
+    - name: Show Output
+      run: echo ${{ steps.deploy.outputs.url }}

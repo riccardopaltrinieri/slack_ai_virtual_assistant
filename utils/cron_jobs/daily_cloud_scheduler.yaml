@@ -1,0 +1,17 @@
+# Cloud Scheduler configuration for Slack Gemini Bot
+name: projects/PROJECT_ID/locations/LOCATION/jobs/daily-slack
+description: "Call the daily trigger endpoint every day at 18:00"
+schedule: "0 18 * * *"
+timeZone: "CET"
+attemptDeadline: "3600s"
+retryConfig:
+  retryCount: 3
+  maxRetryDuration: "120s"
+  minBackoffDuration: "10s"
+  maxBackoffDuration: "300s"
+  maxDoublings: 3
+httpTarget:
+  uri: "[your-public-url]"
+  httpMethod: GET
+  headers:
+    X-Cloud-Scheduler-Token: ${CRON_JOB_SECRET_TOKEN}
